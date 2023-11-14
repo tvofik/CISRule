@@ -1,0 +1,13 @@
+{
+  "Version": "1.0",
+  "Parameters": {
+    "RuleName": "CISRule",
+    "Description": "CISRule",
+    "SourceRuntime": "python3.11",
+    "CodeKey": "CISRuleus-east-1.zip",
+    "InputParameters": "{}",
+    "OptionalParameters": "{}",
+    "SourceEvents": "AWS::EC2::Instance"
+  },
+  "Tags": "[]"
+}
