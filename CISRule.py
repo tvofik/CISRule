@@ -3,6 +3,7 @@ import sys
 import datetime
 import boto3
 import botocore
+import re
 
 try:
     import liblogging
@@ -25,6 +26,51 @@ CONFIG_ROLE_TIMEOUT_SECONDS = 900
 #############
 # Main Code #
 #############
+
+
+# added to evaluate instance
+def evaluate_instance(instance_id, event):
+    # To run the SSM document that does the evaluation
+    ssm_client = get_client('ssm', event)
+    # run the ssm document
+    ssm_response = ssm_client.send_command(
+        InstanceIds=[instance_id],
+        DocumentName='CISRule',  # ! find a way to parameterize this
+        DocumentVersion='$LATEST',
+    )
+    # Get the command id
+    commandId = ssm_response['Command']['CommandId']
+
+    # Wait for command to run
+    waiter = ssm_client.get_waiter('command_executed')
+    waiter.wait(CommandId=commandId, InstanceId=instance_id)
+
+    # Get the responds from the command invocation
+    command_response = ssm_client.get_command_invocation(
+        CommandId=commandId, InstanceId=instance_id)
+
+    status = command_response['Status']
+    if status == 'Success':
+        print("CIS Scan is complete...")
+        message = command_response['StandardOutputContent']
+
+        #! What to search for to determine if it is compliant
+        x = re.search("1", message)
+        if not x:
+            annotation = "Instance is NOT compliant"
+            compliance_type = 'NON_COMPLIANT'
+        else:
+            annotation = "Instance is compliant"
+            compliance_type = 'COMPLIANT'
+        print(annotation)
+    elif status == 'TimedOut' or status == 'Failed' or status == 'Cancelled' or status == 'Undeliverable' or status == 'Terminated':
+        annotation = "CIS scan was not successful. Marked NON_COMPLIANT for now."
+        compliance_type = 'NON_COMPLIANT'
+
+    return {
+        "compliance_type": compliance_type,
+        "annotation": annotation
+    }
 
 
 def evaluate_compliance(event, configuration_item, valid_rule_parameters):
@@ -50,10 +96,16 @@ def evaluate_compliance(event, configuration_item, valid_rule_parameters):
     ###############################
     # Add your custom logic here. #
     ###############################
+    if configuration_item['configuration']['state']['name'] == "stopped":
+        annotation = "Cannot run CIS scan, instance is in a stopped state. Marked NON_COMPLIANT for now."
+        compliance_type = 'NON_COMPLIANT'
+    elif configuration_item:
+        instance_id = configuration_item["configuration"]["instanceId"]
+        result = evaluate_instance(instance_id, event)
+        annotation = result['annotation']
+        compliance_type = result['compliance_type']
 
-    # return "NOT_APPLICABLE"
-
-    return "NON_COMPLIANT"
+    return build_evaluation_from_config_item(configuration_item, compliance_type, annotation)
 
 
 def evaluate_parameters(rule_parameters):
