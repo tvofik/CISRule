@@ -1,0 +1,37 @@
+---
+schemaVersion: "2.2"
+description: "Check Registry of Instance for compliance"
+parameters:
+  commands:
+    type: String
+    description: "(Required) The commands to run on the instance."
+    default: "{{ ssm:CISRule }}"
+mainSteps:
+  - precondition:
+      StringEquals:
+        - platformType
+        - Windows
+    action: "aws:runPowerShellScript"
+    name: "example"
+    inputs:
+      timeoutSeconds: "60"
+      runCommand:
+        - |
+          $collection = "{{commands}}"
+          $Paths = $collection.Split(",")
+          $baseRegistryPath = "HKLM:\"
+
+          foreach ($Path in $Paths) {
+            $PathParts = $Path.Split(":")
+            $registryPath = $PathParts[0]
+            $propertyName = $PathParts[-1]
+
+            $trimRegistryPath = $registryPath.Trim()
+
+            $fullregistryPath = $baseRegistryPath + $trimRegistryPath
+
+            $result = (Get-ItemProperty -Path $fullregistryPath).$propertyName
+            $result
+
+            # Write-Host "The result is: $result"
+          }
