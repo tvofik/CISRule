@@ -1,0 +1,125 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Cloudformation stack that provisions resources to check the CIS compliance of a Windows EC2 Instance"
+Metadata:
+
+Parameters:
+
+Mappings:
+
+Conditions:
+
+Resources:
+  CustomConfigRule:
+    Type: "AWS::Config::ConfigRule"
+    Properties:
+      ConfigRuleName: CISRule
+      Description: A Config rule that performs CIS compliance audit against Linux and Windows EC2 instances
+      Scope:
+        ComplianceResourceTypes:
+          - AWS::EC2::Instance
+      Source:
+        Owner: CUSTOM_LAMBDA
+        SourceIdentifier: !GetAtt LambdaFunction.Arn
+        SourceDetails:
+          - EventSource: aws.config
+            MessageType: ConfigurationItemChangeNotification
+          - EventSource: aws.config
+            MessageType: OversizedConfigurationItemChangeNotification
+    DependsOn: LambdaInvokePermissions
+
+  LambdaInvokePermissions:
+    Type: "AWS::Lambda::Permission"
+    Properties:
+      FunctionName: !GetAtt LambdaFunction.Arn
+      Action: "lambda:InvokeFunction"
+      Principal: config.amazonaws.com
+
+  LambdaFunction:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      FunctionName: CISRule_Function
+      Handler: index.lambda_handler
+      Role: !GetAtt LambdaIamRole.Arn
+      Runtime: python3.11
+      Code:
+        ZipFile: |
+
+  LambdaIamRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: CISRule_Function_IAMRole
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - "sts:AssumeRole"
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/AWSLambdaExecute"
+        - "arn:aws:iam::aws:policy/service-role/AWSConfigRulesExecutionRole"
+      Policies:
+        - PolicyName: "ssm-and-config-permission-requirements"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action:
+                  - "ssm:UpdateInstanceInformation"
+                  - "ssm:SendCommand"
+                  - "ssm:GetCommandInvocation"
+                  - "config:PutEvaluations"
+                Resource: "*"
+
+  SSMDocument:
+    Type: AWS::SSM::Document
+    Properties:
+      Attachments: Attachments
+      Content: JSON # Required
+      DocumentFormat: "String"
+      DocumentType: "String"
+      Name: "String"
+      Requires: Requires
+      Tags: Tags
+      TargetType: "String"
+      UpdateMethod: "String"
+      VersionName: "String"
+
+  SSMParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      AllowedPattern: "String"
+      DataType: "String"
+      Description: "String"
+      Name: "String"
+      Policies: "String"
+      Tags:
+      Tier: "String"
+      Type: "String" # Required
+      Value: "String" # Required
+
+  # EC2RoleforSSM:
+  #   Type: "AWS::IAM::Role"
+  #   Properties:
+  #     Path: /
+  #     ManagedPolicyArns:
+  #       - "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+  #     AssumeRolePolicyDocument:
+  #       Version: 2012-10-17
+  #       Statement:
+  #         - Effect: Allow
+  #           Principal:
+  #             Service:
+  #               - ec2.amazonaws.com
+  #           Action:
+  #             - "sts:AssumeRole"
+  #     RoleName: "EC2RoleforSSM"
+  # EC2InstanceProfile:
+  #   Type: "AWS::IAM::InstanceProfile"
+  #   Properties:
+  #     Path: /
+  #     Roles:
+  #       - !Ref EC2RoleforSSM
+Outputs:
