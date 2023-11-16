@@ -12,7 +12,7 @@ mainSteps:
         - platformType
         - Windows
     action: "aws:runPowerShellScript"
-    name: "example"
+    name: "RunCISChecks"
     inputs:
       timeoutSeconds: "60"
       runCommand:
