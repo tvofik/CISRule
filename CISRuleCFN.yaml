@@ -1,7 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: "Cloudformation stack that provisions resources to check the CIS compliance of a Windows EC2 Instance"
-Metadata:
-
 Parameters:
 
 Mappings:
@@ -43,6 +41,7 @@ Resources:
       Runtime: python3.11
       Code:
         ZipFile: |
+          Lambda Code
 
   LambdaIamRole:
     Type: "AWS::IAM::Role"
@@ -76,50 +75,84 @@ Resources:
   SSMDocument:
     Type: AWS::SSM::Document
     Properties:
-      Attachments: Attachments
-      Content: JSON # Required
-      DocumentFormat: "String"
-      DocumentType: "String"
-      Name: "String"
-      Requires: Requires
-      Tags: Tags
-      TargetType: "String"
-      UpdateMethod: "String"
-      VersionName: "String"
+      Content:
+        schemaVersion: "2.2"
+        description: "Check Registry of Instance for compliance"
+        parameters:
+          commands:
+            type: String
+            description: "(Required) The commands to run on the instance."
+            default: "{{ ssm:CISRule }}"
+        mainSteps:
+          - precondition:
+              StringEquals:
+                - platformType
+                - Windows
+            action: "aws:runPowerShellScript"
+            name: "RunCISChecks"
+            inputs:
+              timeoutSeconds: "60"
+              runCommand:
+                - |
+                  $collection = '{{commands}}'
+
+                  $baseRegistryPath = "HKLM:\"
+                  $compliant=0
+                  $nonComplaint=0
+
+                  $collectionObject = ConvertFrom-Json $collection
+
+                  foreach ($item in $collectionObject) {
+                      $PathParts = ($item.Path).Split(":")
+                      $expectedValue = $item.ExpectedValue
+
+                      $registryPath = $PathParts[0]
+                      $propertyName = $PathParts[-1]
+
+                      $fullRegistryPath = $baseRegistryPath + $registryPath.Trim()
+                      
+                      $result = (Get-ItemProperty -Path $fullRegistryPath).$propertyName
+
+                      if ($result -eq $expectedValue){
+                          $compliant++
+                      } else {
+                          $nonComplaint++
+                      }
+                  }
+
+                  Write-Host "Completed CIS Checks`nRESULT: $compliant compliant and $nonComplaint non-compliant items"
+      DocumentFormat: YAML
+      DocumentType: Command
+      Name: CISRule-Test
+      TargetType: "/AWS::EC2::Instance"
 
   SSMParameter:
     Type: AWS::SSM::Parameter
     Properties:
-      AllowedPattern: "String"
-      DataType: "String"
-      Description: "String"
-      Name: "String"
-      Policies: "String"
-      Tags:
-      Tier: "String"
-      Type: "String" # Required
-      Value: "String" # Required
-
-  # EC2RoleforSSM:
-  #   Type: "AWS::IAM::Role"
-  #   Properties:
-  #     Path: /
-  #     ManagedPolicyArns:
-  #       - "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
-  #     AssumeRolePolicyDocument:
-  #       Version: 2012-10-17
-  #       Statement:
-  #         - Effect: Allow
-  #           Principal:
-  #             Service:
-  #               - ec2.amazonaws.com
-  #           Action:
-  #             - "sts:AssumeRole"
-  #     RoleName: "EC2RoleforSSM"
-  # EC2InstanceProfile:
-  #   Type: "AWS::IAM::InstanceProfile"
-  #   Properties:
-  #     Path: /
-  #     Roles:
-  #       - !Ref EC2RoleforSSM
-Outputs:
+      DataType: "text"
+      Name: "CISRule"
+      Type: "String"
+      Value: '
+      [
+        {
+          "Path": "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System:DontDisplayLastUserName",
+          "ExpectedValue": 0
+        },
+        {
+          "Path": "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System:EnableLUA",
+          "ExpectedValue": 1
+        },
+        {
+          "Path": "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System:EnableUwpStartupTasks",
+          "ExpectedValue": 2
+        },
+        {
+          "Path": "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System:EnableCursorSuppression",
+          "ExpectedValue": 1
+        },
+        {
+          "Path": "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System:ConsentPromptBehaviorAdmin",
+          "ExpectedValue": 5
+        }
+      ]
+      '
