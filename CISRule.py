@@ -51,7 +51,7 @@ def evaluate_instance(instance_id, event):
 
     status = command_response['Status']
     if status == 'Success':
-        print("CIS Scan is complete...")
+        print("CIS Check is complete...")
         message = command_response['StandardOutputContent']
 
         x = re.search("0 non-compliant", message)
@@ -63,7 +63,7 @@ def evaluate_instance(instance_id, event):
             compliance_type = 'COMPLIANT'
         print(annotation)
     elif status == 'TimedOut' or status == 'Failed' or status == 'Cancelled' or status == 'Undeliverable' or status == 'Terminated':
-        annotation = "CIS scan was not successful. Marked NON_COMPLIANT for now."
+        annotation = "CIS Check was not successful. Marked NON_COMPLIANT for now."
         compliance_type = 'NON_COMPLIANT'
 
     return {
@@ -96,7 +96,7 @@ def evaluate_compliance(event, configuration_item, valid_rule_parameters):
     # Add your custom logic here. #
     ###############################
     if configuration_item['configuration']['state']['name'] == "stopped":
-        annotation = "Cannot run CIS scan, instance is in a stopped state. Marked NON_COMPLIANT for now."
+        annotation = "Cannot run CIS Check, instance is in a stopped state. Marked NON_COMPLIANT for now."
         compliance_type = 'NON_COMPLIANT'
     elif configuration_item:
         instance_id = configuration_item["configuration"]["instanceId"]
