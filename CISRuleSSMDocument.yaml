@@ -17,21 +17,30 @@ mainSteps:
       timeoutSeconds: "60"
       runCommand:
         - |
-          $collection = "{{commands}}"
-          $Paths = $collection.Split(",")
+          $collection = '{{commands}}'
+
           $baseRegistryPath = "HKLM:\"
+          $compliant=0
+          $nonComplaint=0
 
-          foreach ($Path in $Paths) {
-            $PathParts = $Path.Split(":")
-            $registryPath = $PathParts[0]
-            $propertyName = $PathParts[-1]
+          $collectionObject = ConvertFrom-Json $collection
 
-            $trimRegistryPath = $registryPath.Trim()
+          foreach ($item in $collectionObject) {
+              $PathParts = ($item.Path).Split(":")
+              $expectedValue = $item.ExpectedValue
 
-            $fullregistryPath = $baseRegistryPath + $trimRegistryPath
+              $registryPath = $PathParts[0]
+              $propertyName = $PathParts[-1]
 
-            $result = (Get-ItemProperty -Path $fullregistryPath).$propertyName
-            $result
+              $fullRegistryPath = $baseRegistryPath + $registryPath.Trim()
+              
+              $result = (Get-ItemProperty -Path $fullRegistryPath).$propertyName
 
-            # Write-Host "The result is: $result"
+              if ($result -eq $expectedValue){
+                  $compliant++
+              } else {
+                  $nonComplaint++
+              }
           }
+
+          Write-Host "Completed CIS Checks`nRESULT: $compliant compliant and $nonComplaint non-compliant items"
