@@ -54,8 +54,7 @@ def evaluate_instance(instance_id, event):
         print("CIS Scan is complete...")
         message = command_response['StandardOutputContent']
 
-        #! What to search for to determine if it is compliant
-        x = re.search("1", message)
+        x = re.search("0 non-compliant", message)
         if not x:
             annotation = "Instance is NOT compliant"
             compliance_type = 'NON_COMPLIANT'
