@@ -1,22 +1,25 @@
-[
-  {
-    "Path": "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System:DontDisplayLastUserName",
-    "ExpectedValue": 0
-  },
-  {
-    "Path": "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System:EnableLUA",
-    "ExpectedValue": 1
-  },
-  {
-    "Path": "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System:EnableUwpStartupTasks",
-    "ExpectedValue": 2
-  },
-  {
-    "Path": "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System:EnableCursorSuppression",
-    "ExpectedValue": 1
-  },
-  {
-    "Path": "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System:ConsentPromptBehaviorAdmin",
-    "ExpectedValue": 5
-  }
-]
+{
+  "Version": "v2.0.0",
+  "Checks": [
+    {
+      "Path": "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System:DontDisplayLastUserName",
+      "ExpectedValue": 0
+    },
+    {
+      "Path": "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System:EnableLUA",
+      "ExpectedValue": 1
+    },
+    {
+      "Path": "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System:EnableUwpStartupTasks",
+      "ExpectedValue": 2
+    },
+    {
+      "Path": "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System:EnableCursorSuppression",
+      "ExpectedValue": 1
+    },
+    {
+      "Path": "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System:ConsentPromptBehaviorAdmin",
+      "ExpectedValue": 5
+    }
+  ]
+}
