@@ -23,52 +23,58 @@ ASSUME_ROLE_MODE = False
 # Other parameters (no change needed)
 CONFIG_ROLE_TIMEOUT_SECONDS = 900
 
+SSM_DOCUMENT_NAME = "CIS"  # ! SSM Document Name
+
 #############
 # Main Code #
 #############
 
 
-# added to evaluate instance
-def evaluate_instance(instance_id, event):
+def evaluate_instance(event, instance_id):
+    """Evaluate the instance for compliance running an ssm document
+    Return:
+    compliance_type
+    annotation
+    """
+
     # To run the SSM document that does the evaluation
     ssm_client = get_client('ssm', event)
-    # run the ssm document
+
     ssm_response = ssm_client.send_command(
         InstanceIds=[instance_id],
-        DocumentName='CISRule',  # ! find a way to parameterize this
+        DocumentName=SSM_DOCUMENT_NAME,
         DocumentVersion='$LATEST',
     )
-    # Get the command id
-    commandId = ssm_response['Command']['CommandId']
+    command_id = ssm_response['Command']['CommandId']
 
-    # Wait for command to run
     waiter = ssm_client.get_waiter('command_executed')
-    waiter.wait(CommandId=commandId, InstanceId=instance_id)
+    waiter.wait(CommandId=command_id, InstanceId=instance_id)
 
-    # Get the responds from the command invocation
     command_response = ssm_client.get_command_invocation(
-        CommandId=commandId, InstanceId=instance_id)
+        CommandId=command_id,
+        InstanceId=instance_id,
+    )
 
     status = command_response['Status']
-    if status == 'Success':
-        print("CIS Check is complete...")
-        message = command_response['StandardOutputContent']
 
+    if status == 'Success':
+        print("CIS CHECK COMPLETE")
+        message = command_response['StandardOutputContent']
         x = re.search("0 non-compliant", message)
-        if not x:
-            annotation = "Instance is NOT compliant"
-            compliance_type = 'NON_COMPLIANT'
-        else:
-            annotation = "Instance is compliant"
+
+        if x:
+            annotation = 'Instance is compliant'
             compliance_type = 'COMPLIANT'
-        print(annotation)
-    elif status == 'TimedOut' or status == 'Failed' or status == 'Cancelled' or status == 'Undeliverable' or status == 'Terminated':
-        annotation = "CIS Check was not successful. Marked NON_COMPLIANT for now."
-        compliance_type = 'NON_COMPLIANT'
+        else:
+            annotation = 'Instance is NOT compliant'
+            compliance_type = 'NON_COMPLIANT'
+    else:
+        compliance_type = "NON_COMPLIANT"
+        annotation = "CIS Check unsuccessful; currently marked NON_COMPLIANT."
 
     return {
-        "compliance_type": compliance_type,
-        "annotation": annotation
+        "ComplianceType": compliance_type,
+        "Annotation": annotation
     }
 
 
@@ -95,14 +101,18 @@ def evaluate_compliance(event, configuration_item, valid_rule_parameters):
     ###############################
     # Add your custom logic here. #
     ###############################
-    if configuration_item['configuration']['state']['name'] == "stopped":
-        annotation = "Cannot run CIS Check, instance is in a stopped state. Marked NON_COMPLIANT for now."
-        compliance_type = 'NON_COMPLIANT'
-    elif configuration_item:
-        instance_id = configuration_item["configuration"]["instanceId"]
-        result = evaluate_instance(instance_id, event)
-        annotation = result['annotation']
-        compliance_type = result['compliance_type']
+    if configuration_item:
+        if configuration_item['configuration']['state']['name'] == "stopped":
+            annotation = "CIS Check not possible; Instance in STOPPED state. Marked NON_COMPLIANT temporarily."
+            compliance_type = 'NON_COMPLIANT'
+        else:
+            instance_id = configuration_item["configuration"]["instanceId"]
+            result = evaluate_instance(event, instance_id)
+
+            annotation = result["Annotation"]
+            compliance_type = result["ComplianceType"]
+    else:
+        return "NOT_APPLICABLE"
 
     return build_evaluation_from_config_item(configuration_item, compliance_type, annotation)
 
@@ -372,7 +382,6 @@ def lambda_handler(event, context):
         liblogging.logEvent(event)
 
     global AWS_CONFIG_CLIENT
-
     # print(event)
     check_defined(event, "event")
     invoking_event = json.loads(event["invokingEvent"])
