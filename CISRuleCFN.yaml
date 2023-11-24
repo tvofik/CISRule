@@ -1,10 +1,10 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: "Cloudformation stack that provisions resources to check the CIS compliance of a Windows EC2 Instance"
-# Parameters:
-
-# Mappings:
-
-# Conditions:
+Parameters:
+  LambdaRuntime:
+    Description: The lambda function's runtime.
+    Type: String
+    Default: python3.11
 
 Resources:
   CustomConfigRule:
@@ -38,7 +38,7 @@ Resources:
       # FunctionName: CISRule_Function_Test
       Handler: index.lambda_handler
       Role: !GetAtt LambdaIamRole.Arn
-      Runtime: python3.11
+      Runtime: !Ref LambdaRuntime
       Timeout: 900
       Code:
         ZipFile: !Sub |
