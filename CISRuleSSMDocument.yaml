@@ -20,27 +20,33 @@ mainSteps:
           $collection = '{{commands}}'
 
           $baseRegistryPath = "HKLM:\"
-          $compliant=0
-          $nonComplaint=0
+          $compliant = 0
+          $nonComplaint = 0
+          $totalChecks = 0
 
           $collectionObject = ConvertFrom-Json $collection
 
-          foreach ($item in $collectionObject) {
-              $PathParts = ($item.Path).Split(":")
-              $expectedValue = $item.ExpectedValue
+          $version = $collectionObject.Version
 
-              $registryPath = $PathParts[0]
-              $propertyName = $PathParts[-1]
+          foreach ($check in $collectionObject.Checks) {
+            $totalChecks++
 
-              $fullRegistryPath = $baseRegistryPath + $registryPath.Trim()
+            $PathParts = ($check.Path).Split(":")
+            $expectedValue = $check.ExpectedValue
+
+            $registryPath = $PathParts[0]
+            $propertyName = $PathParts[-1]
+
+            $fullRegistryPath = $baseRegistryPath + $registryPath.Trim()
               
-              $result = (Get-ItemProperty -Path $fullRegistryPath).$propertyName
+            $result = (Get-ItemProperty -Path $fullRegistryPath).$propertyName
 
-              if ($result -eq $expectedValue){
-                  $compliant++
-              } else {
-                  $nonComplaint++
-              }
+            if ($result -eq $expectedValue) {
+              $compliant++
+            }
+            else {
+              $nonComplaint++
+            }
           }
 
-          Write-Host "Completed CIS Checks`nRESULT: $compliant compliant and $nonComplaint non-compliant items"
+          Write-Host "Completed CIS Checks $version`nRESULT: Total checks $totalChecks ( $compliant compliant and $nonComplaint non-compliant items )"
